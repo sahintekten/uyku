@@ -56,31 +56,49 @@ func setSleepDisabledSilently(_ disabled: Bool) -> Bool {
     run("/usr/bin/sudo", ["-n", "/usr/bin/pmset", "-a", "disablesleep", disabled ? "1" : "0"]).status == 0
 }
 
+/// Set when the person turned "Don't ask for my password" off in the menu; then Uyku keeps asking.
+let keepAskingKey = "keepAskingForPassword"
+
 func setSleepDisabled(_ disabled: Bool) -> Bool {
     if setSleepDisabledSilently(disabled) { return true }
+    let toggle = "/usr/bin/pmset -a disablesleep \(disabled ? 1 : 0)"
+    // First switch: one password prompt does the switch and installs the passwordless rule,
+    // so later switches are silent (same as the menu's "Don't ask for my password").
+    if !UserDefaults.standard.bool(forKey: keepAskingKey), let rule = passwordlessRuleCommand() {
+        return adminShell("\(toggle) && { (\(rule)) || true; }",
+                          prompt: L("Parolanı bir kez gir; Uyku bir daha sormayacak.",
+                                    "Enter your password once; Uyku won't ask again."))
+    }
     let prompt = disabled
         ? L("Mac'in uyumasını kapatmak için parolanı gir.", "Enter your password to keep this Mac awake.")
         : L("Normal uykuya dönmek için parolanı gir.", "Enter your password to let this Mac sleep normally.")
-    return adminShell("/usr/bin/pmset -a disablesleep \(disabled ? 1 : 0)", prompt: prompt)
+    return adminShell(toggle, prompt: prompt)
 }
 
 var passwordlessInstalled: Bool { FileManager.default.fileExists(atPath: sudoersPath) }
 
 /// Installs a sudoers rule that allows exactly two commands without a password:
 /// `pmset -a disablesleep 0` and `pmset -a disablesleep 1`, for the current user.
-func installPasswordless() -> Bool {
+/// The root shell command that writes the sudoers rule (checked with visudo first).
+func passwordlessRuleCommand() -> String? {
     let user = NSUserName()
-    guard user.range(of: "^[A-Za-z0-9._-]+$", options: .regularExpression) != nil else { return false }
+    guard user.range(of: "^[A-Za-z0-9._-]+$", options: .regularExpression) != nil else { return nil }
     let rule = "\(user) ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1"
-    let command = "f=$(/usr/bin/mktemp) && /usr/bin/printf '%s\\n' '\(rule)' > \"$f\""
+    return "f=$(/usr/bin/mktemp) && /usr/bin/printf '%s\\n' '\(rule)' > \"$f\""
         + " && /usr/sbin/visudo -cf \"$f\" >/dev/null"
         + " && /usr/bin/install -m 440 -o root -g wheel \"$f\" \(sudoersPath); r=$?; /bin/rm -f \"$f\"; exit $r"
+}
+
+func installPasswordless() -> Bool {
+    guard let command = passwordlessRuleCommand() else { return false }
+    UserDefaults.standard.set(false, forKey: keepAskingKey)
     return adminShell(command, prompt: L("Bir daha parola sorulmaması için parolanı bir kez gir.",
                                          "Enter your password once so Uyku never has to ask again."))
 }
 
 func removePasswordless() -> Bool {
-    adminShell("/bin/rm -f \(sudoersPath)", prompt: L("Parolasız kuralı kaldırmak için parolanı gir.",
+    UserDefaults.standard.set(true, forKey: keepAskingKey)
+    return adminShell("/bin/rm -f \(sudoersPath)", prompt: L("Parolasız kuralı kaldırmak için parolanı gir.",
                                                        "Enter your password to remove the passwordless rule."))
 }
 

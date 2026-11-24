@@ -46,16 +46,14 @@ Options:
 
 ## The password
 
-Changing the sleep setting needs administrator rights, so macOS asks for your password on every click.
-
-Turn on **Don't ask for my password** and Uyku asks one last time, then adds a rule to `/etc/sudoers.d/uyku` that lets your user run exactly two commands without a password:
+Changing the sleep setting needs administrator rights, so macOS asks for your password on the first click. With that same prompt Uyku adds a rule to `/etc/sudoers.d/uyku` that lets your user run exactly two commands without a password, so it never asks again:
 
 ```
 pmset -a disablesleep 0
 pmset -a disablesleep 1
 ```
 
-Nothing else is allowed by that rule. Turn the option off and the rule is deleted.
+Nothing else is allowed by that rule. To be asked every time instead, right-click the eye and turn off **Don't ask for my password**; the rule is deleted.
 
 ## Keep in mind
 
@@ -87,7 +85,7 @@ Kurmak için Terminal'e şunu yapıştır:
 curl -fsSL https://raw.githubusercontent.com/sahintekten/uyku/main/install.sh | bash
 ```
 
-Sağ tıklayınca simgeyi değiştirebilir, parola sorulmasını kapatabilir ve gözün her açılışta kendiliğinden gelmesini sağlayabilirsin. Mac'in dili Türkçeyse menü de Türkçe çıkar.
+Parolayı yalnız ilk tıklamada bir kez sorar, sonra bir daha sormaz. Sağ tıklayınca simgeyi değiştirebilir, istersen parolanın her seferinde sorulmasını açabilir ve gözün her açılışta kendiliğinden gelmesini sağlayabilirsin. Mac'in dili Türkçeyse menü de Türkçe çıkar.
 
 Uyumayan Mac kapalı çantada ısınır ve pili bitirir; Mac'i çantaya koymadan önce gözü kapat.
 
